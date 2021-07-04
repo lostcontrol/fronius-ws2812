@@ -92,7 +92,7 @@ class Display {
     }
 
     if (m_effect) {
-      uint8_t pos = cubicwave8(beat8(50, m_timebase));
+      uint8_t pos = cubicwave8(beat8(60, m_timebase));
       pos = map8(pos, 0, 10);
       if (pos == 10) {
         m_effect = false;
