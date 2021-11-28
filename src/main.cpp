@@ -10,20 +10,19 @@
 #include <mutex>
 #include <thread>
 
-class Fronius {
+class FroniusMeter {
  public:
-  Fronius(StaticJsonDocument<2048>& doc, String url) : m_doc{doc}, m_url{url} {}
-
-  virtual ~Fronius() = default;
-
-  virtual float get_value(StaticJsonDocument<2048>& doc) = 0;
+  FroniusMeter(StaticJsonDocument<2048>& doc, String hostname) : m_doc{doc} {
+    m_url = "http://" + hostname + "/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System";
+  }
 
   bool read(float& value) {
     m_http.begin(m_url);  // HTTP
     if (m_http.GET() == HTTP_CODE_OK) {
       if (!deserializeJson(m_doc, m_http.getString())) {
         m_http.end();
-        value = get_value(m_doc);
+        JsonObject Body_Data_0 = m_doc["Body"]["Data"]["0"];
+        value = Body_Data_0["PowerReal_P_Sum"];
         return true;
       }
     }
@@ -32,33 +31,15 @@ class Fronius {
   }
 
  private:
-  StaticJsonDocument<2048>& m_doc;
-  String m_url;
-  HTTPClient m_http;
-};
-
-class FroniusMeter : public Fronius {
- public:
-  FroniusMeter(StaticJsonDocument<2048>& doc, String hostname)
-      : Fronius(doc, "http://" + hostname + "/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System") {
-  }
-
-  float get_value(StaticJsonDocument<2048>& doc) override {
+  float get_value(StaticJsonDocument<2048>& doc) {
     JsonObject Body_Data_0 = doc["Body"]["Data"]["0"];
     return Body_Data_0["PowerReal_P_Sum"];
   }
-};
 
-class FroniusInverter : public Fronius {
- public:
-  FroniusInverter(StaticJsonDocument<2048>& doc, String hostname)
-      : Fronius(doc,
-                "http://" + hostname + "/solar_api/v1/GetInverterRealtimeData.cgi?Scope=System") {}
-
-  float get_value(StaticJsonDocument<2048>& doc) override {
-    JsonObject Body_Data = doc["Body"]["Data"];
-    return Body_Data["PAC"]["Values"]["1"];
-  }
+ private:
+  StaticJsonDocument<2048>& m_doc;
+  String m_url;
+  HTTPClient m_http;
 };
 
 template <int Size>
@@ -142,7 +123,6 @@ constexpr const char* wifi_pass = "<your password>";
 WiFiMulti wifi;
 StaticJsonDocument<2048> doc;
 FroniusMeter fronius_meter{doc, hostname};
-FroniusInverter fronius_inverter{doc, hostname};
 
 volatile float grid = 0.f;
 std::mutex mutex;
@@ -177,7 +157,6 @@ void loop() {
   EVERY_N_SECONDS(3) {
     // log_i("=> %d", millis());
     if (wifi.run() == WL_CONNECTED) {
-      // const auto production = fronius_inverter.read();
       float value = 0;
 
       if (fronius_meter.read(value)) {
