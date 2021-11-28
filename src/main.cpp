@@ -202,7 +202,7 @@ void loop() {
     }
     // log_i("<= %d", millis());
   }
-  // EVERY_N_SECONDS(1) {
+  // EVERY_N_SECONDS(2) {
   //   std::lock_guard<std::mutex> _(mutex);
   //   static int counter = 0;
   //   // grid = counter;
