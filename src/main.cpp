@@ -126,10 +126,10 @@ FroniusMeter fronius_meter{doc, hostname};
 
 volatile float grid = 0.f;
 std::mutex mutex;
-std::thread display_thread;
 
-void display_loop() {
+void display_loop(void*) {
   Display<10> display;
+
   while (true) {
     float value = 0;
     {
@@ -141,6 +141,9 @@ void display_loop() {
     // log_i("d");
     FastLED.show();
   }
+
+  // Never reach here
+  vTaskDelete(nullptr);
 }
 
 void setup() {
@@ -148,9 +151,10 @@ void setup() {
 
   Serial.begin(115200);
 
+  WiFi.setHostname("fronius-ws2812");
   wifi.addAP(wifi_ssid, wifi_pass);
 
-  display_thread = std::thread(display_loop);
+  xTaskCreatePinnedToCore(display_loop, "display", 3000, nullptr, 1, nullptr, 0);
 }
 
 void loop() {
