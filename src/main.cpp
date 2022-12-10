@@ -10,6 +10,8 @@
 #include <mutex>
 #include <thread>
 
+#include "credentials.h"
+
 class FroniusMeter {
  public:
   FroniusMeter(StaticJsonDocument<2048>& doc, String hostname) : m_doc{doc} {
@@ -115,10 +117,6 @@ class Display {
   bool m_effect = false;
   uint32_t m_timebase = 0;
 };
-
-constexpr const char* hostname = "fronius.localdomain";
-constexpr const char* wifi_ssid = "<your SSID>";
-constexpr const char* wifi_pass = "<your password>";
 
 WiFiMulti wifi;
 StaticJsonDocument<2048> doc;
