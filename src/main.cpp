@@ -14,7 +14,7 @@
 
 class FroniusMeter {
  public:
-  FroniusMeter(StaticJsonDocument<2048>& doc, String hostname) : m_doc{doc} {
+  FroniusMeter(String hostname) {
     m_url = "http://" + hostname + "/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System";
   }
 
@@ -33,13 +33,13 @@ class FroniusMeter {
   }
 
  private:
-  float get_value(StaticJsonDocument<2048>& doc) {
+  float get_value(JsonDocument& doc) {
     JsonObject Body_Data_0 = doc["Body"]["Data"]["0"];
     return Body_Data_0["PowerReal_P_Sum"];
   }
 
  private:
-  StaticJsonDocument<2048>& m_doc;
+  JsonDocument m_doc;
   String m_url;
   HTTPClient m_http;
 };
@@ -50,7 +50,6 @@ class Display {
   Display() {
     FastLED.addLeds<WS2812B, D4, GRB>(m_leds, Size).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(255);
-    FastLED.setMaxRefreshRate(25);
     FastLED.setDither(BINARY_DITHER);
 
     for (uint8_t i = 0; i < Size; ++i) {
@@ -119,8 +118,7 @@ class Display {
 };
 
 WiFiMulti wifi;
-StaticJsonDocument<2048> doc;
-FroniusMeter fronius_meter{doc, hostname};
+FroniusMeter fronius_meter{hostname};
 
 volatile float grid = 0.f;
 std::mutex mutex;
@@ -138,6 +136,9 @@ void display_loop(void*) {
     //  display.animate();
     // log_i("d");
     FastLED.show();
+
+    // Yield to FreeRTOS for 5ms to prevent watchdog resets
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 
   // Never reach here
