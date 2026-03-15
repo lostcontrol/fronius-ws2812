@@ -13,33 +13,41 @@
 #include "credentials.h"
 
 class FroniusMeter {
+ private:
+  // Returns a reference to the specific JSON node to prevent path duplication
+  auto get_target_node(JsonDocument& doc) { return doc["Body"]["Data"]["0"]["PowerReal_P_Sum"]; }
+
  public:
   FroniusMeter(String hostname) {
     m_url = "http://" + hostname + "/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System";
   }
 
   bool read(float& value) {
-    m_http.begin(m_url);  // HTTP
+    m_http.begin(m_url);
+    bool success = false;
+
     if (m_http.GET() == HTTP_CODE_OK) {
-      if (!deserializeJson(m_doc, m_http.getString())) {
-        m_http.end();
-        JsonObject Body_Data_0 = m_doc["Body"]["Data"]["0"];
-        value = Body_Data_0["PowerReal_P_Sum"];
-        return true;
+      // 1. Set up the filter using the helper method
+      JsonDocument filter_doc;
+      get_target_node(filter_doc) = true;
+
+      // 2. Parse directly from the TCP stream
+      JsonDocument doc;
+      DeserializationOption::Filter filter{filter_doc};
+      DeserializationError error = deserializeJson(doc, m_http.getStream(), std::move(filter));
+
+      if (!error) {
+        // 3. Extract the value using the same helper method
+        value = get_target_node(doc).as<float>();
+        success = true;
       }
     }
+
     m_http.end();
-    return false;
+    return success;
   }
 
  private:
-  float get_value(JsonDocument& doc) {
-    JsonObject Body_Data_0 = doc["Body"]["Data"]["0"];
-    return Body_Data_0["PowerReal_P_Sum"];
-  }
-
- private:
-  JsonDocument m_doc;
   String m_url;
   HTTPClient m_http;
 };
